@@ -2,6 +2,7 @@ from arcee.client import Client as ArceeCl
 from rest_api.client import Client as RestClv1
 from rest_api.client import Client as RestClv2
 from insider.client import Client as InsiderCl
+from metroculus.client import Client as MetroculusCl
 
 
 class NoAssociatedClientException(Exception):
@@ -12,6 +13,7 @@ class Client:
 
     cl_map = {
         'arcee': ArceeCl,
+        'metroculus': MetroculusCl,
         'rest_v1': RestClv1,
         'rest_v2': RestClv2,
         'insider': InsiderCl,
