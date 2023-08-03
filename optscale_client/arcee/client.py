@@ -8,7 +8,7 @@ import requests
 from retrying import retry
 
 LOG = logging.getLogger(__name__)
-ACURA_CERT_PATH = '/acura.crt'
+ACURA_CERT_PATH = "/acura.crt"
 
 
 def retry_if_connection_error(exception):
@@ -21,20 +21,20 @@ def retry_if_connection_error(exception):
 
 
 class AbstractHttpProvider(metaclass=ABCMeta):
-    def __init__(self, token='', secret='', ip=None):
+    def __init__(self, token="", secret="", ip=None):
         self._token = token
         self._secret = secret
         self._ip = ip
 
     @property
     def headers(self):
-        headers = {'Content-type': 'application/json'}
+        headers = {"Content-type": "application/json"}
         if self._token:
-            headers.update({'x-api-key': str(self._token)})
+            headers.update({"x-api-key": str(self._token)})
         if self._secret:
-            headers.update({'Secret': str(self._secret)})
+            headers.update({"Secret": str(self._secret)})
         if self._ip:
-            headers.update({'X-Forwarded-For': self._ip})
+            headers.update({"X-Forwarded-For": self._ip})
         return headers
 
     @property
@@ -59,29 +59,32 @@ class AbstractHttpProvider(metaclass=ABCMeta):
 
 
 class RequestsHttpProvider(AbstractHttpProvider):
-    def __init__(self, url, token='', secret='', verify=True,
-                 ip=None):
+    def __init__(self, url, token="", secret="", verify=True, ip=None):
         self.url = url
         self.verify = verify
         self.session = requests.session()
-        acura_cert = os.environ.get('ACURA_CERT')
+        acura_cert = os.environ.get("ACURA_CERT")
         if acura_cert is not None:
             if not os.path.exists(ACURA_CERT_PATH):
-                with open(ACURA_CERT_PATH, 'w') as f_crt:
+                with open(ACURA_CERT_PATH, "w") as f_crt:
                     f_crt.write(acura_cert)
             self.session.verify = ACURA_CERT_PATH
         super().__init__(token, secret, ip)
 
-    @retry(stop_max_delay=10000, wait_fixed=1000,
-           retry_on_exception=retry_if_connection_error)
+    @retry(
+        stop_max_delay=10000,
+        wait_fixed=1000,
+        retry_on_exception=retry_if_connection_error,
+    )
     def request(self, path, method, data=None):
         full_url = self.url + path
-        response = self.session.request(method, full_url, data=data,
-                                        headers=self.headers, verify=self.verify)
+        response = self.session.request(
+            method, full_url, data=data, headers=self.headers, verify=self.verify
+        )
         response.raise_for_status()
         response_body = None
         if response.status_code != requests.codes.no_content:
-            response_body = json.loads(response.content.decode('utf-8'))
+            response_body = json.loads(response.content.decode("utf-8"))
         return response.status_code, response_body
 
     def close(self):
@@ -89,20 +92,23 @@ class RequestsHttpProvider(AbstractHttpProvider):
 
 
 class FetchMethodHttpProvider(AbstractHttpProvider):
-    def __init__(self, fetch_method, rethrow=True, token='', secret='', ip=None):
+    def __init__(self, fetch_method, rethrow=True, token="", secret="", ip=None):
         self.fetch = fetch_method
         self._rethrow = rethrow
         super().__init__(token, secret, ip)
 
     def request(self, url, method, body=None):
         response = self.fetch(
-            url, method=method, body=body, allow_nonstandard_methods=True,
-            headers=self.headers
+            url,
+            method=method,
+            body=body,
+            allow_nonstandard_methods=True,
+            headers=self.headers,
         )
         if self._rethrow:
             response.rethrow()
         try:
-            decoded_response = json.loads(response.body.decode('utf-8'))
+            decoded_response = json.loads(response.body.decode("utf-8"))
         except Exception as e:
             LOG.error("failed to decode response body %s", e)
             decoded_response = None
@@ -113,8 +119,18 @@ class FetchMethodHttpProvider(AbstractHttpProvider):
 
 
 class Client:
-    def __init__(self, address="127.0.0.1", port="80", api_version="v2",
-                 url=None, http_provider=None, token='', secret='', verify=True, ip=None):
+    def __init__(
+        self,
+        address="127.0.0.1",
+        port="80",
+        api_version="v2",
+        url=None,
+        http_provider=None,
+        token="",
+        secret="",
+        verify=True,
+        ip=None,
+    ):
         if http_provider is None:
             if url is None:
                 url = "http://%s:%s" % (address, port)
@@ -161,31 +177,29 @@ class Client:
 
     @staticmethod
     def query_url(**query):
-        query = {
-            key: value for key, value in query.items() if value is not None
-        }
+        query = {key: value for key, value in query.items() if value is not None}
         encoded_query = urlencode(query, doseq=True)
         return "?" + encoded_query
 
     @staticmethod
     def applications_url(id=None):
-        url = 'applications'
+        url = "applications"
         if id is not None:
-            url = '%s/%s' % (url, id)
+            url = "%s/%s" % (url, id)
         return url
 
     @staticmethod
     def goals_url(id=None):
-        url = 'goals'
+        url = "goals"
         if id is not None:
-            url = '%s/%s' % (url, id)
+            url = "%s/%s" % (url, id)
         return url
 
     @staticmethod
     def run_url(id):
-        url = 'run'
+        url = "run"
         if id is not None:
-            url = '%s/%s' % (url, id)
+            url = "%s/%s" % (url, id)
         return url
 
     @staticmethod
@@ -194,13 +208,13 @@ class Client:
 
     @staticmethod
     def runs_url():
-        return 'runs'
+        return "runs"
 
     @staticmethod
     def tokens_url(id=None):
-        url = 'tokens'
+        url = "tokens"
         if id is not None:
-            url = '%s/%s' % (url, id)
+            url = "%s/%s" % (url, id)
         return url
 
     @staticmethod
@@ -223,28 +237,38 @@ class Client:
             "target_value": target_value,
             "tendency": tendency,
             "name": name,
-            "func": func
+            "func": func,
         }
         return self.post(self.goals_url(), b)
 
-    def goals_update(self, goal_id, target_value=None, tendency=None, name=None, func=None):
+    def goals_update(
+        self, goal_id, target_value=None, tendency=None, name=None, func=None
+    ):
         b = dict()
         if target_value is not None:
-            b.update({
-                "target_value": target_value,
-            })
+            b.update(
+                {
+                    "target_value": target_value,
+                }
+            )
         if tendency is not None:
-            b.update({
-                "tendency": tendency,
-            })
+            b.update(
+                {
+                    "tendency": tendency,
+                }
+            )
         if name is not None:
-            b.update({
-                "name": name,
-            })
+            b.update(
+                {
+                    "name": name,
+                }
+            )
         if func is not None:
-            b.update({
-                "func": func,
-            })
+            b.update(
+                {
+                    "func": func,
+                }
+            )
         return self.patch(self.goals_url(goal_id), b)
 
     def goal_get(self, goal_id):
@@ -267,10 +291,9 @@ class Client:
         return self.get(self.applications_url())
 
     def applications_bulk_get(self, application_ids, include_deleted=False):
-        url = f'{self.applications_url()}/bulk'
+        url = f"{self.applications_url()}/bulk"
         url += self.query_url(
-            application_id=application_ids,
-            include_deleted=include_deleted
+            application_id=application_ids, include_deleted=include_deleted
         )
         return self.get(url)
 
@@ -286,53 +309,60 @@ class Client:
         :param goals:
         :return:
         """
-        b = {
-            'key': application_key,
-            'owner_id': owner_id,
-            'name': name,
-            'goals': goals
-        }
+        b = {"key": application_key, "owner_id": owner_id, "name": name, "goals": goals}
         return self.post(self.applications_url(), b)
 
     def run_update(
-            self,
-            id_,
-            runset_id=None,
-            hyperparameters=None,
-            state=None,
-            reason=None,
-            runset_name=None,
-            finish=False,
+        self,
+        id_,
+        runset_id=None,
+        hyperparameters=None,
+        state=None,
+        reason=None,
+        runset_name=None,
+        finish=False,
     ):
         """
         Updates run. This method used with bulldozer worker
         """
         b = dict()
         if runset_id is not None:
-            b.update({
-                "runset_id": runset_id,
-            })
+            b.update(
+                {
+                    "runset_id": runset_id,
+                }
+            )
         if hyperparameters is not None:
-            b.update({
-                "hyperparameters": hyperparameters,
-            })
+            b.update(
+                {
+                    "hyperparameters": hyperparameters,
+                }
+            )
         if state is not None:
-            b.update({
-                "state": state,
-            })
+            b.update(
+                {
+                    "state": state,
+                }
+            )
         if reason is not None:
-            b.update({
-                "reason": reason,
-            })
+            b.update(
+                {
+                    "reason": reason,
+                }
+            )
 
         if runset_name is not None:
-            b.update({
-                "runset_name": runset_name,
-            })
+            b.update(
+                {
+                    "runset_name": runset_name,
+                }
+            )
         if finish:
-            b.update({
-                "finish": finish,
-            })
+            b.update(
+                {
+                    "finish": finish,
+                }
+            )
         return self.patch(self.run_url(id_), b)
 
     def application_update(self, application_id, owner_id=None, name=None, goals=None):
@@ -346,17 +376,11 @@ class Client:
         """
         b = dict()
         if owner_id is not None:
-            b.update({
-                "owner_id": owner_id
-            })
+            b.update({"owner_id": owner_id})
         if name is not None:
-            b.update({
-                "name": name
-            })
+            b.update({"name": name})
         if goals is not None:
-            b.update({
-                "goals": goals
-            })
+            b.update({"goals": goals})
         return self.patch(self.applications_url(application_id), b)
 
     def application_delete(self, id):
@@ -442,7 +466,7 @@ class Client:
         :return:
         """
         b = {
-            'token': token,
+            "token": token,
         }
         return self.post(self.tokens_url(), b)
 

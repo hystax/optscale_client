@@ -19,15 +19,12 @@ def retry_if_connection_error(exception):
 
 
 class AbstractHttpProvider(metaclass=ABCMeta):
-    def __init__(self, secret=''):
+    def __init__(self, secret=""):
         self._secret = secret
 
     @property
     def headers(self):
-        return {
-            'Secret': str(self._secret),
-            'Content-type': 'application/json'
-        }
+        return {"Secret": str(self._secret), "Content-type": "application/json"}
 
     @property
     def secret(self):
@@ -39,23 +36,26 @@ class AbstractHttpProvider(metaclass=ABCMeta):
 
 
 class RequestsHttpProvider(AbstractHttpProvider):
-    def __init__(self, url, secret='', verify=True):
+    def __init__(self, url, secret="", verify=True):
         self.url = url
         self.verify = verify
         self.session = requests.session()
         super().__init__(secret)
 
-    @retry(stop_max_delay=10000, wait_fixed=1000,
-           retry_on_exception=retry_if_connection_error)
+    @retry(
+        stop_max_delay=10000,
+        wait_fixed=1000,
+        retry_on_exception=retry_if_connection_error,
+    )
     def request(self, path, method, data=None):
         full_url = self.url + path
         response = self.session.request(
-            method, full_url, data=data,
-            headers=self.headers, verify=self.verify)
+            method, full_url, data=data, headers=self.headers, verify=self.verify
+        )
         response.raise_for_status()
         response_body = None
         if response.status_code != requests.codes.no_content:
-            response_body = json.loads(response.content.decode('utf-8'))
+            response_body = json.loads(response.content.decode("utf-8"))
         return response.status_code, response_body
 
     def close(self):
@@ -63,20 +63,23 @@ class RequestsHttpProvider(AbstractHttpProvider):
 
 
 class FetchMethodHttpProvider(AbstractHttpProvider):
-    def __init__(self, fetch_method, rethrow=True, secret=''):
+    def __init__(self, fetch_method, rethrow=True, secret=""):
         self.fetch = fetch_method
         self._rethrow = rethrow
         super().__init__(secret)
 
     def request(self, url, method, body=None):
         response = self.fetch(
-            url, method=method, body=body, allow_nonstandard_methods=True,
-            headers=self.headers
+            url,
+            method=method,
+            body=body,
+            allow_nonstandard_methods=True,
+            headers=self.headers,
         )
         if self._rethrow:
             response.rethrow()
         try:
-            decoded_response = json.loads(response.body.decode('utf-8'))
+            decoded_response = json.loads(response.body.decode("utf-8"))
         except Exception as e:
             LOG.error("Failed to decode response body %s", e)
             decoded_response = None
@@ -87,9 +90,16 @@ class FetchMethodHttpProvider(AbstractHttpProvider):
 
 
 class Client:
-    def __init__(self, address="127.0.0.1", port="80", api_version="v2",
-                 url=None, http_provider=None, secret='',
-                 verify=True):
+    def __init__(
+        self,
+        address="127.0.0.1",
+        port="80",
+        api_version="v2",
+        url=None,
+        http_provider=None,
+        secret="",
+        verify=True,
+    ):
         if http_provider is None:
             if url is None:
                 url = "http://%s:%s" % (address, port)
@@ -131,24 +141,24 @@ class Client:
 
     @staticmethod
     def query_url(**query):
-        query = {
-            key: value for key, value in query.items() if value is not None
-        }
+        query = {key: value for key, value in query.items() if value is not None}
         encoded_query = urlencode(query, doseq=True)
         return "?" + encoded_query
 
     @staticmethod
     def cloud_type_url(cloud_type):
-        return 'cloud_types/%s' % cloud_type
+        return "cloud_types/%s" % cloud_type
 
     @staticmethod
     def region_price_sums_url(cloud_type):
-        return '%s/region_price_sums' % Client.cloud_type_url(cloud_type)
+        return "%s/region_price_sums" % Client.cloud_type_url(cloud_type)
 
     @staticmethod
     def similar_pricings_url(cloud_type, pricing_id):
-        return '%s/pricings/%s/similar' % (
-            Client.cloud_type_url(cloud_type), pricing_id)
+        return "%s/pricings/%s/similar" % (
+            Client.cloud_type_url(cloud_type),
+            pricing_id,
+        )
 
     def get_region_price_sums(self, cloud_type):
         return self.get(self.region_price_sums_url(cloud_type))
@@ -158,108 +168,132 @@ class Client:
 
     @staticmethod
     def flavors_url():
-        return 'flavors'
+        return "flavors"
 
-    def find_flavor(self, cloud_type, resource_type, region, family_specs,
-                    mode, **kwargs):
+    def find_flavor(
+        self, cloud_type, resource_type, region, family_specs, mode, **kwargs
+    ):
         body = {
-            'cloud_type': cloud_type,
-            'resource_type': resource_type,
-            'region': region,
-            'family_specs': family_specs,
-            'mode': mode
+            "cloud_type": cloud_type,
+            "resource_type": resource_type,
+            "region": region,
+            "family_specs": family_specs,
+            "mode": mode,
         }
         body.update(kwargs)
         return self.post(self.flavors_url(), body)
 
     @staticmethod
     def flavor_prices_url(cloud_type):
-        return '%s/flavor_prices' % Client.cloud_type_url(cloud_type)
+        return "%s/flavor_prices" % Client.cloud_type_url(cloud_type)
 
     def get_flavor_prices(
-            self, cloud_type, flavor, region, os_type, preinstalled=None,
-            quantity=None, billing_method=None, currency=None):
+        self,
+        cloud_type,
+        flavor,
+        region,
+        os_type,
+        preinstalled=None,
+        quantity=None,
+        billing_method=None,
+        currency=None,
+    ):
         params = {
-            'flavor': flavor,
-            'region': region,
-            'os_type': os_type,
+            "flavor": flavor,
+            "region": region,
+            "os_type": os_type,
         }
         if preinstalled:
-            params['preinstalled'] = preinstalled
+            params["preinstalled"] = preinstalled
         if quantity:
-            params['quantity'] = quantity
+            params["quantity"] = quantity
         if billing_method:
-            params['billing_method'] = billing_method
+            params["billing_method"] = billing_method
         if currency:
-            params['currency'] = currency
+            params["currency"] = currency
         url = self.flavor_prices_url(cloud_type) + self.query_url(**params)
         return self.get(url)
 
     @staticmethod
     def reserved_instances_offerings_url():
-        return 'reserved_instances_offerings'
+        return "reserved_instances_offerings"
 
     def find_reserved_instances_offerings(
-            self, cloud_type, flavor, min_duration, max_duration, tenancy=None,
-            include_marketplace=None, currency=None, product_description=None,
-            cloud_account_id=None, **kwargs):
+        self,
+        cloud_type,
+        flavor,
+        min_duration,
+        max_duration,
+        tenancy=None,
+        include_marketplace=None,
+        currency=None,
+        product_description=None,
+        cloud_account_id=None,
+        **kwargs
+    ):
         body = {
-            'cloud_type': cloud_type,
-            'product_description': product_description,
-            'tenancy': tenancy,
-            'flavor': flavor,
-            'min_duration': min_duration,
-            'max_duration': max_duration,
-            'include_marketplace': include_marketplace,
-            'currency': currency,
-            'cloud_account_id': cloud_account_id
+            "cloud_type": cloud_type,
+            "product_description": product_description,
+            "tenancy": tenancy,
+            "flavor": flavor,
+            "min_duration": min_duration,
+            "max_duration": max_duration,
+            "include_marketplace": include_marketplace,
+            "currency": currency,
+            "cloud_account_id": cloud_account_id,
         }
         body.update(kwargs)
         return self.post(self.reserved_instances_offerings_url(), body)
 
     @staticmethod
     def flavors_generation_url():
-        return 'flavors_generation'
+        return "flavors_generation"
 
-    def find_flavor_generation(self, cloud_type, region, current_flavor,
-                               os_type=None, preinstalled=None, meter_id=None,
-                               **kwargs):
+    def find_flavor_generation(
+        self,
+        cloud_type,
+        region,
+        current_flavor,
+        os_type=None,
+        preinstalled=None,
+        meter_id=None,
+        **kwargs
+    ):
         body = {
-            'cloud_type': cloud_type,
-            'region': region,
-            'current_flavor': current_flavor,
-            'os_type': os_type,
-            'preinstalled': preinstalled,
-            'meter_id': meter_id
+            "cloud_type": cloud_type,
+            "region": region,
+            "current_flavor": current_flavor,
+            "os_type": os_type,
+            "preinstalled": preinstalled,
+            "meter_id": meter_id,
         }
         body.update(kwargs)
         return self.post(self.flavors_generation_url(), body)
 
     @staticmethod
     def family_prices_url(cloud_type):
-        return '%s/family_prices' % Client.cloud_type_url(cloud_type)
+        return "%s/family_prices" % Client.cloud_type_url(cloud_type)
 
-    def get_family_prices(self, cloud_type, instance_family, region,
-                          os_type=None, currency=None):
+    def get_family_prices(
+        self, cloud_type, instance_family, region, os_type=None, currency=None
+    ):
         params = {
-            'instance_family': instance_family,
-            'region': region,
+            "instance_family": instance_family,
+            "region": region,
         }
         if os_type:
-            params['os_type'] = os_type
+            params["os_type"] = os_type
         if currency:
-            params['currency'] = currency
+            params["currency"] = currency
         url = self.family_prices_url(cloud_type) + self.query_url(**params)
         return self.get(url)
 
     @staticmethod
     def relevant_flavors_url(cloud_type):
-        return '%s/relevant_flavors' % Client.cloud_type_url(cloud_type)
+        return "%s/relevant_flavors" % Client.cloud_type_url(cloud_type)
 
     def get_relevant_flavors(self, cloud_type, region, **kwargs):
-        params = {
-            'region': region
-        }
+        params = {"region": region}
         if kwargs:
             params.update(kwargs)
         url = self.relevant_flavors_url(cloud_type) + self.query_url(**params)

@@ -12,11 +12,11 @@ class NoAssociatedClientException(Exception):
 class Client:
 
     cl_map = {
-        'arcee': ArceeCl,
-        'metroculus': MetroculusCl,
-        'rest_v1': RestClv1,
-        'rest_v2': RestClv2,
-        'insider': InsiderCl,
+        "arcee": ArceeCl,
+        "metroculus": MetroculusCl,
+        "rest_v1": RestClv1,
+        "rest_v2": RestClv2,
+        "insider": InsiderCl,
     }
 
     def __init__(self, cls_t, *args, **kwargs):
@@ -29,4 +29,5 @@ class Client:
         def _missing(*args, **kwargs):
             method = getattr(self._inner, name)
             return method(*args, **kwargs)
+
         return _missing
